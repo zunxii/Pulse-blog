@@ -1,0 +1,25 @@
+'use client'
+
+import { Sidebar } from '@/components/layout/Sidebar'
+import { PostViewer } from '@/components/post/PostViewer'
+import { CommentSection } from '@/components/post/CommentSection'
+import { useSmoothScroll } from '@/lib/hooks/useSmoothScroll'
+
+export default function PostDetailPage({ params }: { params: { id: string } }) {
+  useSmoothScroll()
+
+  return (
+    <div className="min-h-screen bg-black">
+      <div className="flex">
+        <Sidebar />
+        
+        <main className="flex-1 ml-0 md:ml-20 lg:ml-64">
+          <PostViewer postId={params.id} />
+          <div className="max-w-4xl mx-auto px-4 md:px-8">
+            <CommentSection postId={params.id} />
+          </div>
+        </main>
+      </div>
+    </div>
+  )
+}
