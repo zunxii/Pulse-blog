@@ -16,134 +16,82 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+import { trpc } from '@/lib/trpc/client'
 
 interface PostViewerProps {
   postId: string
 }
 
-const mockPost = {
-  id: '1',
-  title: 'Building Scalable React Applications: A Complete Guide',
-  content: `React has become the de facto library for building modern web applications. But as your application grows, you'll face challenges around state management, code organization, and performance optimization.
-
-In this comprehensive guide, we'll explore the architectural patterns and best practices that will help you build React applications that can scale from thousands to millions of users.
-
-## The Foundation: Project Structure
-
-A well-organized project structure is crucial for maintainability. Here's the structure I recommend for large-scale React apps:
-
-\`\`\`
-src/
-├── components/     # Reusable UI components
-├── features/       # Feature-based modules
-├── hooks/          # Custom React hooks
-├── lib/            # Utility functions
-├── services/       # API and external services
-└── types/          # TypeScript type definitions
-\`\`\`
-
-## State Management at Scale
-
-When your app grows beyond a few components, you'll need a robust state management solution. Here are the main options:
-
-**1. Context API + useReducer** - Perfect for small to medium apps with straightforward state needs.
-
-**2. Zustand** - My personal favorite for most applications. It's lightweight, has minimal boilerplate, and works great with TypeScript.
-
-**3. Redux Toolkit** - Still the best choice for extremely complex state logic with time-travel debugging needs.
-
-## Performance Optimization
-
-Performance optimization should be part of your development process, not an afterthought. Here are key strategies:
-
-### Code Splitting
-Use React.lazy() and Suspense to split your code into smaller chunks:
-
-\`\`\`jsx
-const Dashboard = lazy(() => import('./features/Dashboard'))
-
-function App() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <Dashboard />
-    </Suspense>
-  )
-}
-\`\`\`
-
-### Memoization
-Use React.memo, useMemo, and useCallback strategically to prevent unnecessary re-renders.
-
-## Testing Strategy
-
-A comprehensive testing strategy is essential:
-
-- **Unit Tests**: Test individual functions and components
-- **Integration Tests**: Test how components work together
-- **E2E Tests**: Test critical user flows
-
-Use Jest and React Testing Library for unit/integration tests, and Playwright or Cypress for E2E tests.
-
-## Conclusion
-
-Building scalable React applications requires thoughtful architecture, performance optimization, and comprehensive testing. Start with these patterns and adjust based on your specific needs.
-
-Remember: premature optimization is the root of all evil. Start simple, measure performance, and optimize where it matters.`,
-  author: {
-    name: 'Sarah Chen',
-    username: 'sarahchen',
-    bio: 'Tech writer & software engineer',
-    avatar: null,
-    followers: 12500,
-  },
-  publishedAt: '2 days ago',
-  readTime: '12 min read',
-  tags: ['React', 'JavaScript', 'Web Development', 'Architecture'],
-  likes: 1247,
-  comments: 89,
-  views: 5432,
-  coverImage: null,
-}
-
 export function PostViewer({ postId }: PostViewerProps) {
   const [isLiked, setIsLiked] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
-  const [likesCount, setLikesCount] = useState(mockPost.likes)
   const [showShareMenu, setShowShareMenu] = useState(false)
 
-  const handleLike = () => {
+  const { data: post, isLoading } = trpc.posts.getById.useQuery({ id: postId })
+  const likeMutation = trpc.posts.like.useMutation()
+  const utils = trpc.useUtils()
+
+  const handleLike = async () => {
+    if (!post) return
     setIsLiked(!isLiked)
-    setLikesCount(isLiked ? likesCount - 1 : likesCount + 1)
+    await likeMutation.mutateAsync({ id: post.id })
+    utils.posts.getById.invalidate({ id: postId })
   }
+
+  if (isLoading) {
+    return (
+      <article className="max-w-4xl mx-auto px-4 md:px-8 py-8">
+        <div className="animate-pulse space-y-8">
+          <div className="h-12 bg-white/5 rounded w-3/4"></div>
+          <div className="h-64 bg-white/5 rounded"></div>
+        </div>
+      </article>
+    )
+  }
+
+  if (!post) {
+    return (
+      <article className="max-w-4xl mx-auto px-4 md:px-8 py-8">
+        <div className="text-center text-white/60">Post not found</div>
+      </article>
+    )
+  }
+
+  const likesCount = isLiked ? (post.likes || 0) + 1 : post.likes || 0
 
   return (
     <article className="max-w-4xl mx-auto px-4 md:px-8 py-8">
       {/* Cover Image */}
-      {mockPost.coverImage && (
-        <div className="aspect-video rounded-2xl overflow-hidden mb-8 bg-gradient-to-br from-white/10 to-white/5" />
+      {post.coverImage && (
+        <div className="aspect-video rounded-2xl overflow-hidden mb-8 bg-gradient-to-br from-white/10 to-white/5">
+          <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover" />
+        </div>
       )}
 
       {/* Title */}
       <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
-        {mockPost.title}
+        {post.title}
       </h1>
 
       {/* Author Info */}
       <div className="flex items-center justify-between mb-8 pb-8 border-b border-white/10">
-        <Link href={`/profile/${mockPost.author.username}`} className="flex items-center gap-4 group">
+        <Link href={`/profile/${post.author.username}`} className="flex items-center gap-4 group">
           <div className="w-14 h-14 rounded-full bg-gradient-to-br from-white/20 to-white/5 ring-2 ring-white/10 group-hover:ring-white/20 transition-all" />
           <div>
             <p className="text-lg font-semibold text-white group-hover:text-white/80 transition-colors">
-              {mockPost.author.name}
+              {post.author.name}
             </p>
             <div className="flex items-center gap-3 text-sm text-white/50">
-              <span>{mockPost.publishedAt}</span>
+              <span>{post.publishedAt}</span>
               <span>•</span>
-              <span>{mockPost.readTime}</span>
+              <span>{post.readTime}</span>
               <span>•</span>
               <div className="flex items-center gap-1">
                 <Eye className="w-4 h-4" />
-                <span>{mockPost.views.toLocaleString()} views</span>
+                <span>{post.views.toLocaleString()} views</span>
               </div>
             </div>
           </div>
@@ -155,49 +103,31 @@ export function PostViewer({ postId }: PostViewerProps) {
       </div>
 
       {/* Tags */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {mockPost.tags.map((tag, idx) => (
-          <Link
-            key={idx}
-            href={`/topic/${tag.toLowerCase()}`}
-            className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-sm text-white/70 hover:text-white transition-all"
-          >
-            {tag}
-          </Link>
-        ))}
-      </div>
+      {post.tags && post.tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-8">
+          {post.tags.map((tag, idx) => (
+            <Link
+              key={idx}
+              href={`/topic/${tag.toLowerCase()}`}
+              className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-full text-sm text-white/70 hover:text-white transition-all"
+            >
+              {tag}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Content */}
       <div className="prose prose-invert prose-lg max-w-none mb-12">
-        {mockPost.content.split('\n\n').map((block, idx) => {
-          if (block.startsWith('##')) {
-            return (
-              <h2 key={idx} className="text-3xl font-bold text-white mt-12 mb-6">
-                {block.replace('##', '').trim()}
-              </h2>
-            )
-          }
-          if (block.startsWith('```')) {
-            const code = block.replace(/```\w*/g, '').trim()
-            return (
-              <pre key={idx} className="bg-white/5 border border-white/10 rounded-xl p-6 overflow-x-auto my-6">
-                <code className="text-sm text-white/90 font-mono">{code}</code>
-              </pre>
-            )
-          }
-          if (block.startsWith('**')) {
-            return (
-              <p key={idx} className="text-white/80 leading-relaxed mb-6 font-semibold">
-                {block.replace(/\*\*/g, '')}
-              </p>
-            )
-          }
-          return (
-            <p key={idx} className="text-white/80 leading-relaxed mb-6">
-              {block}
-            </p>
-          )
-        })}
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+          components={{
+            div: ({node, ...props}) => <div className="text-white/80" {...props} />
+          }}
+        >
+          {post.content}
+        </ReactMarkdown>
       </div>
 
       {/* Engagement Bar */}
@@ -219,7 +149,7 @@ export function PostViewer({ postId }: PostViewerProps) {
 
             <button className="flex items-center gap-2 text-white/60 hover:text-white transition-colors">
               <MessageCircle className="w-6 h-6" />
-              <span className="text-sm font-medium">{mockPost.comments}</span>
+              <span className="text-sm font-medium">{post.comments}</span>
             </button>
           </div>
 
