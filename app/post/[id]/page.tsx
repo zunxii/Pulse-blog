@@ -3,7 +3,7 @@
 import { Sidebar } from '@/components/layout/Sidebar'
 import { PostViewer } from '@/components/post/PostViewer'
 import { CommentSection } from '@/components/post/CommentSection'
-import { useSmoothScroll } from '@/lib/hooks/useSmoothScroll'
+import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 
 export default function PostDetailPage({ params }: { params: { id: string } }) {
   useSmoothScroll()

@@ -3,7 +3,7 @@
 import { Sidebar } from '@/components/layout/Sidebar'
 import { FeedContainer } from '@/components/feed/FeedContainer'
 import { TrendingTopics } from '@/components/feed/TrendingTopics'
-import { useSmoothScroll } from '@/lib/hooks/useSmoothScroll'
+import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 import { RecommendedAuthors } from '@/components/feed/RecommendedAuthors'
 
 export default function FeedPage() {

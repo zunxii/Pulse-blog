@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { trpc } from '@/lib/trpc/client'
-import { useToast } from '@/lib/hooks/useToast'
+import { trpc } from '@/server/trpc/client'
+import { useToast } from '@/hooks/useToast'
 import { ToastContainer } from '@/components/ui/toast'
 import Link from 'next/link'
 import { Eye, Heart, MessageCircle, Edit, Trash2, MoreVertical } from 'lucide-react'
@@ -18,12 +18,12 @@ export function RecentPosts() {
   const { toasts, toast, removeToast } = useToast()
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all')
   
-  const { data: posts, isLoading, refetch } = trpc.posts.getAll.useQuery({
+  const { data: posts, isLoading, refetch } = trpc.post.getAll.useQuery({
     published: filter === 'all' ? undefined : filter === 'published',
     limit: 50,
   })
 
-  const deletePostMutation = trpc.posts.delete.useMutation({
+  const deletePostMutation = trpc.post.delete.useMutation({
     onSuccess: () => {
       toast.success('Post deleted successfully')
       refetch()
@@ -33,7 +33,7 @@ export function RecentPosts() {
     },
   })
 
-  const togglePublishMutation = trpc.posts.togglePublish.useMutation({
+  const togglePublishMutation = trpc.post.togglePublish.useMutation({
     onSuccess: () => {
       toast.success('Post status updated')
       refetch()

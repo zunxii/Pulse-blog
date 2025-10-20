@@ -3,7 +3,7 @@
 import { Sidebar } from '@/components/layout/Sidebar'
 import { DashboardStats } from '@/components/dashboard/DashboardStats'
 import { RecentPosts } from '@/components/dashboard/RecentPosts'
-import { useSmoothScroll } from '@/lib/hooks/useSmoothScroll'
+import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 import Link from 'next/link'
 import { PenSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'

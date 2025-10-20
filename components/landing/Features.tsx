@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import { Zap, Users, BookOpen, Sparkles } from 'lucide-react'
-import { useGSAP } from '@/lib/hooks/useGSAP'
+import { useGSAP } from '@/hooks/useGSAP'
 import { fadeInUp } from '@/lib/utils/animations'
 
 const features = [

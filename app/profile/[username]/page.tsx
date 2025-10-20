@@ -4,7 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { ProfileHeader } from '@/components/profile/ProfileHeader'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { ArticlesList } from '@/components/profile/ArticlesList'
-import { useSmoothScroll } from '@/lib/hooks/useSmoothScroll'
+import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 
 export default function ProfilePage({ params }: { params: { username: string } }) {
   useSmoothScroll()

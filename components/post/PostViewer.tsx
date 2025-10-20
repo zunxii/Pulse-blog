@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
-import { trpc } from '@/lib/trpc/client'
+import { trpc } from '@/server/trpc/client'
 
 interface PostViewerProps {
   postId: string
@@ -30,15 +30,15 @@ export function PostViewer({ postId }: PostViewerProps) {
   const [isSaved, setIsSaved] = useState(false)
   const [showShareMenu, setShowShareMenu] = useState(false)
 
-  const { data: post, isLoading } = trpc.posts.getById.useQuery({ id: postId })
-  const likeMutation = trpc.posts.like.useMutation()
+  const { data: post, isLoading } = trpc.post.getById.useQuery({ id: postId })
+  const likeMutation = trpc.post.like.useMutation()
   const utils = trpc.useUtils()
 
   const handleLike = async () => {
     if (!post) return
     setIsLiked(!isLiked)
     await likeMutation.mutateAsync({ id: post.id })
-    utils.posts.getById.invalidate({ id: postId })
+    utils.post.getById.invalidate({ id: postId })
   }
 
   if (isLoading) {
@@ -105,7 +105,7 @@ export function PostViewer({ postId }: PostViewerProps) {
       {/* Tags */}
       {post.tags && post.tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-8">
-          {post.tags.map((tag, idx) => (
+          {post.tags.map((tag : string, idx: number)=> (
             <Link
               key={idx}
               href={`/topic/${tag.toLowerCase()}`}

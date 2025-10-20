@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { trpc } from '@/lib/trpc/client'
+import { trpc } from '@/server/trpc/client'
 import { Comment } from './Comment'
 
 interface CommentSectionProps {
@@ -11,7 +11,7 @@ interface CommentSectionProps {
 
 export function CommentSection({ postId }: CommentSectionProps) {
   const [newComment, setNewComment] = useState('')
-  const { data: comments, isLoading } = trpc.comments.getByPost.useQuery({ postId })
+  const { data: comments, isLoading } = trpc.comments.getByPostId.useQuery({ postId })
   const createCommentMutation = trpc.comments.create.useMutation()
   const utils = trpc.useUtils()
 
@@ -27,7 +27,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
     })
 
     setNewComment('')
-    utils.comments.getByPost.invalidate({ postId })
+    utils.comments.getByPostId.invalidate({ postId })
   }
 
   if (isLoading) {

@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import Image from 'next/image'
-import { useGSAP } from '@/lib/hooks/useGSAP'
+import { useGSAP } from '@/hooks/useGSAP'
 import { fadeInUp } from '@/lib/utils/animations'
 
 export function Showcase() {

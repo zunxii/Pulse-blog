@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { trpc } from '@/lib/trpc/client'
-import { useAutoSave } from '@/lib/hooks/useAutoSave'
-import { useToast } from '@/lib/hooks/useToast'
+import { trpc } from '@/server/trpc/client'
+import { useAutoSave } from '@/hooks/useAutoSave'
+import { useToast } from '@/hooks/useToast'
 import { EditorToolbar } from './EditorToolbar'
 import { EditorHeader } from './EditorHeader'
 import { EditorPreview } from './EditorPreview'
@@ -36,7 +36,7 @@ export function PostEditor({ postId }: PostEditorProps) {
   const contentRef = useRef<HTMLTextAreaElement>(null)
 
   // Fetch existing post if editing
-  const { data: existingPost, isLoading: isLoadingPost } = trpc.posts.getById.useQuery(
+  const { data: existingPost, isLoading: isLoadingPost } = trpc.post.getById.useQuery(
     { id: postId! },
     { enabled: !!postId }
   )
@@ -62,19 +62,19 @@ export function PostEditor({ postId }: PostEditorProps) {
   }, [content])
 
   // Mutations
-  const saveDraftMutation = trpc.posts.saveDraft.useMutation({
+  const saveDraftMutation = trpc.post.saveDraft.useMutation({
     onSuccess: (data) => {
       if (!postId && data.id) {
         router.replace(`/write?id=${data.id}`)
       }
-      utils.posts.getById.invalidate()
+      utils.post.getById.invalidate()
     },
     onError: (error) => {
       console.error('Failed to save draft:', error)
     },
   })
 
-  const createPostMutation = trpc.posts.create.useMutation({
+  const createPostMutation = trpc.post.create.useMutation({
     onSuccess: (data) => {
       toast.success('Post published successfully!')
       router.push(`/post/${data.post.slug}`)
@@ -85,7 +85,7 @@ export function PostEditor({ postId }: PostEditorProps) {
     },
   })
 
-  const updatePostMutation = trpc.posts.update.useMutation({
+  const updatePostMutation = trpc.post.update.useMutation({
     onSuccess: (data) => {
       toast.success('Post updated successfully!')
       router.push(`/post/${data.post.slug}`)

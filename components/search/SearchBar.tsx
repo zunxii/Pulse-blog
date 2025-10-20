@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Search, X, Loader2 } from 'lucide-react'
 import { trpc } from '@/lib/trpc/client'
 import Link from 'next/link'
-import { useDebounce } from '@/lib/hooks/useDebounce'
+import { useDebounce } from '@/hooks/useDebounce'
 
 export function SearchBar() {
   const [query, setQuery] = useState('')

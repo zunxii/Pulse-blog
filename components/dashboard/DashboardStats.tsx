@@ -1,10 +1,10 @@
 'use client'
 
-import { trpc } from '@/lib/trpc/client'
+import { trpc } from '@/server/trpc/client'
 import { FileText, Eye, Heart, MessageCircle } from 'lucide-react'
 
 export function DashboardStats() {
-  const { data: posts, isLoading } = trpc.posts.getAll.useQuery({
+  const { data: posts, isLoading } = trpc.post.getAll.useQuery({
     published: undefined,
     limit: 100,
   })

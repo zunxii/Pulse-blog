@@ -3,7 +3,7 @@
 import { useRef } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useGSAP } from '@/lib/hooks/useGSAP'
+import { useGSAP } from '@/hooks/useGSAP'
 import { fadeInUp } from '@/lib/utils/animations'
 
 export function CTA() {

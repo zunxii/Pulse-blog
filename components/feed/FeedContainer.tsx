@@ -9,12 +9,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ChevronDown } from "lucide-react"
 import { useState } from "react"
-import { trpc } from "@/lib/trpc/client"
+import { trpc } from "@/server/trpc/client"
 
 export function FeedContainer() {
   const [selected, setSelected] = useState("Latest")
   
-  const { data: posts, isLoading } = trpc.posts.getAll.useQuery({
+  const { data: posts, isLoading } = trpc.post.getAll.useQuery({
     published: true,
     limit: 20,
   });

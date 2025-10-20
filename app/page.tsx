@@ -5,7 +5,7 @@ import { Features } from '@/components/landing/Features'
 import { Showcase } from '@/components/landing/Showcase'
 import { CTA } from '@/components/landing/CTA'
 import { Navigation } from '@/components/layout/Navigation'
-import { useSmoothScroll } from '@/lib/hooks/useSmoothScroll'
+import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 
 export default function LandingPage() {
   useSmoothScroll()
