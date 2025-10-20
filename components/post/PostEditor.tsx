@@ -1,48 +1,169 @@
 'use client'
 
-import { useState, useRef, Key } from 'react'
-import Link from 'next/link'
-import { 
-  ArrowLeft, 
-  Image as ImageIcon, 
-  Eye, 
-  Save, 
-  Send,
-  Bold,
-  Italic,
-  List,
-  ListOrdered,
-  Link2,
-  Code,
-  Quote,
-  Heading2,
-  X,
-  Plus
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PreviewMode } from './PreviewMode'
-import EditorHeader from './EditorHeader'
+import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { trpc } from '@/lib/trpc/client'
+import { useAutoSave } from '@/lib/hooks/useAutoSave'
+import { useToast } from '@/lib/hooks/useToast'
+import { EditorToolbar } from './EditorToolbar'
+import { EditorHeader } from './EditorHeader'
+import { EditorPreview } from './EditorPreview'
+import { CategorySelector } from './CategorySelector'
+import { TagInput } from './TagInput'
+import { CoverImageUpload } from './CoverImageUpload'
+import { ToastContainer } from '../ui/toast'
 
-export function PostEditor() {
+interface PostEditorProps {
+  postId?: string;
+}
+
+export function PostEditor({ postId }: PostEditorProps) {
+  const router = useRouter()
+  const { toasts, toast, removeToast } = useToast()
+  const utils = trpc.useUtils()
+  
+  // Form state
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [excerpt, setExcerpt] = useState('')
   const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState('')
   const [coverImage, setCoverImage] = useState<string | null>(null)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [isPreview, setIsPreview] = useState(false)
+  const [wordCount, setWordCount] = useState(0)
+  const [readingTime, setReadingTime] = useState('0 min read')
+  
   const contentRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleAddTag = () => {
-    if (tagInput.trim() && tags.length < 5) {
-      setTags([...tags, tagInput.trim()])
-      setTagInput('')
+  // Fetch existing post if editing
+  const { data: existingPost, isLoading: isLoadingPost } = trpc.posts.getById.useQuery(
+    { id: postId! },
+    { enabled: !!postId }
+  )
+
+  // Load existing post data
+  useEffect(() => {
+    if (existingPost) {
+      setTitle(existingPost.title)
+      setContent(existingPost.content)
+      setExcerpt(existingPost.excerpt || '')
+      setTags(existingPost.tags || [])
+      setCoverImage(existingPost.coverImage || null)
+      // Load categories if available
+    }
+  }, [existingPost])
+
+  // Calculate word count and reading time
+  useEffect(() => {
+    const words = content.trim().split(/\s+/).filter(Boolean).length
+    setWordCount(words)
+    const minutes = Math.ceil(words / 200)
+    setReadingTime(`${minutes} min read`)
+  }, [content])
+
+  // Mutations
+  const saveDraftMutation = trpc.posts.saveDraft.useMutation({
+    onSuccess: (data) => {
+      if (!postId && data.id) {
+        router.replace(`/write?id=${data.id}`)
+      }
+      utils.posts.getById.invalidate()
+    },
+    onError: (error) => {
+      console.error('Failed to save draft:', error)
+    },
+  })
+
+  const createPostMutation = trpc.posts.create.useMutation({
+    onSuccess: (data) => {
+      toast.success('Post published successfully!')
+      router.push(`/post/${data.post.slug}`)
+    },
+    onError: (error) => {
+      toast.error('Failed to publish post')
+      console.error('Publish error:', error)
+    },
+  })
+
+  const updatePostMutation = trpc.posts.update.useMutation({
+    onSuccess: (data) => {
+      toast.success('Post updated successfully!')
+      router.push(`/post/${data.post.slug}`)
+    },
+    onError: (error) => {
+      toast.error('Failed to update post')
+      console.error('Update error:', error)
+    },
+  })
+
+  // Auto-save functionality
+  const { status: saveStatus } = useAutoSave({
+    data: { title, content, excerpt, tags, coverImage, categoryIds: selectedCategories },
+    onSave: async (data) => {
+      if (!data.title && !data.content) return
+      
+      await saveDraftMutation.mutateAsync({
+        id: postId,
+        ...data,
+        coverImage: data.coverImage || undefined,
+      })
+    },
+    delay: 30000, // 30 seconds
+    enabled: !!(title || content),
+  })
+
+  // Handle publish
+  const handlePublish = async () => {
+    if (!title || !content) {
+      toast.error('Title and content are required')
+      return
+    }
+
+    if (postId) {
+      await updatePostMutation.mutateAsync({
+        id: postId,
+        title,
+        content,
+        excerpt,
+        coverImage: coverImage || undefined,
+        published: true,
+        categoryIds: selectedCategories,
+      })
+    } else {
+      await createPostMutation.mutateAsync({
+        title,
+        content,
+        excerpt,
+        coverImage: coverImage || undefined,
+        published: true,
+        categoryIds: selectedCategories,
+      })
     }
   }
 
-  const handleRemoveTag = (index: number) => {
-    setTags(tags.filter((_, i) => i !== index))
+  // Handle save draft
+  const handleSaveDraft = async () => {
+    if (!title && !content) {
+      toast.error('Please add some content first')
+      return
+    }
+
+    try {
+      await saveDraftMutation.mutateAsync({
+        id: postId,
+        title,
+        content,
+        excerpt,
+        coverImage: coverImage || undefined,
+        categoryIds: selectedCategories,
+      })
+      toast.success('Draft saved successfully!')
+    } catch (error) {
+      toast.error('Failed to save draft')
+    }
   }
 
+  // Toolbar actions
   const insertFormatting = (before: string, after: string = before) => {
     const textarea = contentRef.current
     if (!textarea) return
@@ -53,56 +174,42 @@ export function PostEditor() {
     const newText = content.substring(0, start) + before + selectedText + after + content.substring(end)
     
     setContent(newText)
+    
     setTimeout(() => {
       textarea.focus()
       textarea.setSelectionRange(start + before.length, end + before.length)
     }, 0)
   }
 
-  const toolbarButtons = [
-    { icon: Bold, action: () => insertFormatting('**'), label: 'Bold' },
-    { icon: Italic, action: () => insertFormatting('*'), label: 'Italic' },
-    { icon: Heading2, action: () => insertFormatting('## ', '\n'), label: 'Heading' },
-    { icon: Quote, action: () => insertFormatting('> ', '\n'), label: 'Quote' },
-    { icon: Code, action: () => insertFormatting('`'), label: 'Code' },
-    { icon: Link2, action: () => insertFormatting('[', '](url)'), label: 'Link' },
-    { icon: List, action: () => insertFormatting('- ', '\n'), label: 'List' },
-    { icon: ListOrdered, action: () => insertFormatting('1. ', '\n'), label: 'Numbered List' },
-  ]
+  if (isLoadingPost) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <EditorHeader/>
-      {/* Editor */}
+    <div className="min-h-screen bg-black flex flex-col">
+      <EditorHeader
+        isPreview={isPreview}
+        onTogglePreview={() => setIsPreview(!isPreview)}
+        onSaveDraft={handleSaveDraft}
+        onPublish={handlePublish}
+        saveStatus={saveStatus}
+        isPublishing={createPostMutation.isPending || updatePostMutation.isPending}
+        isSaving={saveDraftMutation.isPending}
+      />
+
       <main className="flex-1 py-8">
         <div className="max-w-4xl mx-auto px-4 md:px-8">
           {!isPreview ? (
             <div className="space-y-6">
               {/* Cover Image */}
-              <div className="relative group">
-                {coverImage ? (
-                  <div className="relative aspect-video rounded-2xl overflow-hidden bg-white/5 border border-white/10">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5" />
-                    <button 
-                      onClick={() => setCoverImage(null)}
-                      className="absolute top-4 right-4 p-2 bg-black/80 hover:bg-black rounded-lg transition-colors"
-                    >
-                      <X className="w-4 h-4 text-white" />
-                    </button>
-                  </div>
-                ) : (
-                  <button className="w-full aspect-video rounded-2xl border-2 border-dashed border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 transition-all duration-300 flex flex-col items-center justify-center gap-3 group">
-                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <ImageIcon className="w-8 h-8 text-white/60" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-white/80 font-medium mb-1">Add a cover image</p>
-                      <p className="text-sm text-white/40">Recommended: 1600 x 900</p>
-                    </div>
-                  </button>
-                )}
-              </div>
+              <CoverImageUpload
+                image={coverImage}
+                onImageChange={setCoverImage}
+              />
 
               {/* Title */}
               <textarea
@@ -114,62 +221,20 @@ export function PostEditor() {
                 style={{ lineHeight: '1.2' }}
               />
 
+              {/* Categories */}
+              <CategorySelector
+                selected={selectedCategories}
+                onChange={setSelectedCategories}
+              />
+
               {/* Tags */}
-              <div>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {tags.map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-sm text-white/80"
-                    >
-                      {tag}
-                      <button
-                        onClick={() => handleRemoveTag(idx)}
-                        className="hover:text-white transition-colors"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </span>
-                  ))}
-                  {tags.length < 5 && (
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={tagInput}
-                        onChange={(e) => setTagInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            handleAddTag()
-                          }
-                        }}
-                        placeholder="Add tag..."
-                        className="bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 w-32"
-                      />
-                      <button
-                        onClick={handleAddTag}
-                        className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
-                      >
-                        <Plus className="w-4 h-4 text-white/60" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <p className="text-xs text-white/40">Add up to 5 tags to help readers discover your article</p>
-              </div>
+              <TagInput
+                tags={tags}
+                onChange={setTags}
+              />
 
               {/* Toolbar */}
-              <div className="flex items-center gap-1 p-2 bg-white/5 border border-white/10 rounded-xl">
-                {toolbarButtons.map((button, idx) => (
-                  <button
-                    key={idx}
-                    onClick={button.action}
-                    title={button.label}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
-                  >
-                    <button.icon className="w-4 h-4" />
-                  </button>
-                ))}
-              </div>
+              <EditorToolbar onInsert={insertFormatting} />
 
               {/* Content */}
               <textarea
@@ -180,17 +245,46 @@ export function PostEditor() {
                 className="w-full min-h-[500px] bg-transparent border border-white/10 rounded-2xl p-6 text-lg text-white/90 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/20 leading-relaxed resize-none font-mono"
               />
 
+              {/* Stats */}
               <div className="flex items-center justify-between text-sm text-white/40">
-                <p>{content.length} characters • {Math.ceil(content.split(' ').length / 200)} min read</p>
-                <p>Supports Markdown formatting</p>
+                <div className="flex items-center gap-4">
+                  <p>{wordCount} words</p>
+                  <p>•</p>
+                  <p>{readingTime}</p>
+                  <p>•</p>
+                  <p>{content.length} characters</p>
+                </div>
+                <p>Markdown supported</p>
+              </div>
+
+              {/* Excerpt (Optional) */}
+              <div>
+                <label className="block text-sm text-white/60 mb-2">
+                  Excerpt (optional - used for previews)
+                </label>
+                <textarea
+                  value={excerpt}
+                  onChange={(e) => setExcerpt(e.target.value)}
+                  placeholder="Brief summary of your post..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 resize-none"
+                  rows={3}
+                />
               </div>
             </div>
           ) : (
-            <PreviewMode title={title} content={content} tags={tags} coverImage={coverImage} />
+            <EditorPreview
+              title={title}
+              content={content}
+              tags={tags}
+              coverImage={coverImage}
+              readTime={readingTime}
+            />
           )}
         </div>
       </main>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   )
 }
-

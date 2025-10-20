@@ -12,15 +12,16 @@ import {
   Sparkles,
   TrendingUp,
   Bell,
-  Library
+  LayoutDashboard
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
 const navItems = [
   { icon: Home, label: 'Feed', href: '/feed' },
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   { icon: TrendingUp, label: 'Trending', href: '/trending' },
-  { icon: Search, label: 'Explore', href: '/search' },
+  { icon: Search, label: 'Search', href: '/search' },
   { icon: Bookmark, label: 'Saved', href: '/saved' },
   { icon: Bell, label: 'Notifications', href: '/notifications' },
   { icon: User, label: 'Profile', href: '/profile/username' },
@@ -92,9 +93,9 @@ export function Sidebar() {
         <div className="flex items-center justify-around px-2 py-3">
           {[
             { icon: Home, href: '/feed' },
+            { icon: LayoutDashboard, href: '/dashboard' },
             { icon: Search, href: '/search' },
             { icon: PenSquare, href: '/write' },
-            { icon: Bell, href: '/notifications' },
             { icon: User, href: '/profile/username' },
           ].map((item, idx) => {
             const isActive = pathname === item.href
