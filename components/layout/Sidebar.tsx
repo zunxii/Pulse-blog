@@ -5,14 +5,9 @@ import { usePathname } from 'next/navigation'
 import { 
   Home, 
   Search, 
-  Bookmark, 
   PenSquare, 
-  User, 
-  Settings,
-  Sparkles,
-  TrendingUp,
-  Bell,
-  LayoutDashboard
+  LayoutDashboard,
+  Sparkles
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -20,11 +15,7 @@ import { Button } from '@/components/ui/button'
 const navItems = [
   { icon: Home, label: 'Feed', href: '/feed' },
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-  { icon: TrendingUp, label: 'Trending', href: '/trending' },
   { icon: Search, label: 'Search', href: '/search' },
-  { icon: Bookmark, label: 'Saved', href: '/saved' },
-  { icon: Bell, label: 'Notifications', href: '/notifications' },
-  { icon: User, label: 'Profile', href: '/profile/username' },
 ]
 
 export function Sidebar() {
@@ -76,16 +67,6 @@ export function Sidebar() {
             )
           })}
         </nav>
-
-        <div className="p-3 border-t border-white/5">
-          <Link
-            href="/settings"
-            className="flex items-center gap-4 px-3 py-3 rounded-xl text-white/60 hover:bg-white/5 hover:text-white transition-all duration-200"
-          >
-            <Settings className="w-6 h-6" />
-            <span className="hidden lg:block font-medium">Settings</span>
-          </Link>
-        </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
@@ -96,7 +77,6 @@ export function Sidebar() {
             { icon: LayoutDashboard, href: '/dashboard' },
             { icon: Search, href: '/search' },
             { icon: PenSquare, href: '/write' },
-            { icon: User, href: '/profile/username' },
           ].map((item, idx) => {
             const isActive = pathname === item.href
             return (

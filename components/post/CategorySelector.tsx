@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
-import { trpc } from '@/lib/trpc/client'
+import { trpc } from '@/server/trpc/client'
 import { cn } from '@/lib/utils'
 
 interface CategorySelectorProps {
