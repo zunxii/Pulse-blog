@@ -8,8 +8,36 @@ if (!connectionString) {
   throw new Error("DATABASE_URL is not set in environment variables");
 }
 
-const client = postgres(connectionString, {
-  prepare: false,
-});
+let connection: ReturnType<typeof postgres> | null = null;
 
-export const db = drizzle(client, { schema });
+function getConnection() {
+  if (!connection) {
+    connection = postgres(connectionString!, {
+      max: 10, 
+      idle_timeout: 20, 
+      connect_timeout: 10, 
+      prepare: true, 
+      onnotice: () => {}, 
+      connection: {
+        application_name: 'pulse_blog',
+      },
+    });
+  }
+  return connection;
+}
+
+export const db = drizzle(getConnection(), { schema });
+
+// Graceful shutdown
+export async function closeConnection() {
+  if (connection) {
+    await connection.end();
+    connection = null;
+  }
+}
+
+// Handle process termination
+if (typeof process !== 'undefined') {
+  process.on('SIGTERM', closeConnection);
+  process.on('SIGINT', closeConnection);
+}

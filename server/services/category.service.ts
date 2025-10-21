@@ -37,6 +37,16 @@ export class CategoryService {
   }
 
   async createCategory(data: { name: string; description?: string }) {
+    // Check if category with same name exists
+    const existing = await this.categoryRepository.findAll();
+    const duplicate = existing.find(
+      cat => cat.name.toLowerCase() === data.name.toLowerCase()
+    );
+    
+    if (duplicate) {
+      throw new Error("Category with this name already exists");
+    }
+
     const category = await this.categoryRepository.create(data);
     
     return {
@@ -44,27 +54,49 @@ export class CategoryService {
       category: {
         id: category.id,
         slug: category.slug,
+        name: category.name,
       },
     };
   }
 
   async updateCategory(id: string, data: { name?: string; description?: string }) {
-    const category = await this.categoryRepository.update(id, data);
-    
-    if (!category) {
+    // Check if category exists
+    const existing = await this.categoryRepository.findById(id);
+    if (!existing) {
       throw new Error("Category not found");
     }
+
+    // If updating name, check for duplicates
+    if (data.name) {
+      const allCategories = await this.categoryRepository.findAll();
+      const duplicate = allCategories.find(
+        cat => cat.id !== id && cat.name.toLowerCase() === data.name!.toLowerCase()
+      );
+      
+      if (duplicate) {
+        throw new Error("Category with this name already exists");
+      }
+    }
+
+    const category = await this.categoryRepository.update(id, data);
 
     return {
       success: true,
       category: {
         id: category.id,
         slug: category.slug,
+        name: category.name,
       },
     };
   }
 
   async deleteCategory(id: string) {
+    // Check if category exists
+    const existing = await this.categoryRepository.findById(id);
+    if (!existing) {
+      throw new Error("Category not found");
+    }
+
     await this.categoryRepository.delete(id);
     return { success: true };
   }

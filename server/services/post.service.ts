@@ -1,5 +1,29 @@
 import { PostRepository } from "../repositories/post.repository";
-import { formatDate } from "@/lib/utils";
+
+interface PostResponseData {
+  post: {
+    id: string;
+    title: string;
+    slug: string;
+    content: string;
+    excerpt: string | null;
+    coverImage: string | null;
+    published: boolean | null;
+    authorName: string | null;
+    authorUsername: string | null;
+    authorAvatar: string | null;
+    authorBio: string | null;
+    authorFollowers: number | null;
+    readTime: string | null;
+    views: number | null;
+    likes: number | null;
+    commentsCount: number | null;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+    publishedAt: Date | null;
+  };
+  categories: string[];
+}
 
 export class PostService {
   private postRepository: PostRepository;
@@ -15,7 +39,7 @@ export class PostService {
   }) {
     const posts = await this.postRepository.findAll(filters);
     
-    return posts.map((p) => this.formatPostResponse(p));
+    return posts.map((p) => this.formatPostResponse(p, false));
   }
 
   async getPostById(id: string) {
@@ -25,7 +49,7 @@ export class PostService {
       throw new Error("Post not found");
     }
 
-    return this.formatPostResponse(result);
+    return this.formatPostResponse(result, false);
   }
 
   async getPostBySlug(slug: string) {
@@ -35,10 +59,10 @@ export class PostService {
       throw new Error("Post not found");
     }
 
-    // Increment views
-    await this.postRepository.incrementViews(result.post.id);
-
-    return this.formatPostResponse(result, true);
+    this.postRepository.incrementViews(result.post.id).catch(err => {
+      console.error('Failed to increment views:', err);
+    });
+    return this.formatPostResponse(result, false);
   }
 
   async createPost(data: {
@@ -69,11 +93,23 @@ export class PostService {
     published?: boolean;
     categoryIds?: string[];
   }) {
-    const updates: any = { ...data };
-    
-    if (data.content) {
+
+    const existing = await this.postRepository.findById(id);
+    if (!existing) {
+      throw new Error("Post not found");
+    }
+
+    const updates: any = {};
+
+    if (data.title !== undefined) updates.title = data.title;
+    if (data.content !== undefined) {
+      updates.content = data.content;
       updates.readTime = this.calculateReadTime(data.content);
     }
+    if (data.excerpt !== undefined) updates.excerpt = data.excerpt;
+    if (data.coverImage !== undefined) updates.coverImage = data.coverImage;
+    if (data.published !== undefined) updates.published = data.published;
+    if (data.categoryIds !== undefined) updates.categoryIds = data.categoryIds;
 
     const post = await this.postRepository.update(id, updates);
     
@@ -81,6 +117,12 @@ export class PostService {
   }
 
   async deletePost(id: string) {
+
+    const existing = await this.postRepository.findById(id);
+    if (!existing) {
+      throw new Error("Post not found");
+    }
+
     await this.postRepository.delete(id);
     return { success: true };
   }
@@ -96,23 +138,35 @@ export class PostService {
     const readTime = this.calculateReadTime(data.content);
 
     if (data.id) {
-      await this.postRepository.update(data.id, {
-        ...data,
+
+      const { id, ...updateData } = data;
+      await this.postRepository.update(id, {
+        ...updateData,
         readTime,
         published: false,
       });
       return { success: true, id: data.id };
     } else {
+
+      const { id, ...createData } = data;
       const post = await this.postRepository.create({
-        ...data,
+        ...createData,
         readTime,
         published: false,
+        authorName: "Anonymous",
+        authorUsername: "anonymous",
       });
       return { success: true, id: post.id };
     }
   }
 
   async likePost(id: string) {
+
+    const existing = await this.postRepository.findById(id);
+    if (!existing) {
+      throw new Error("Post not found");
+    }
+
     await this.postRepository.incrementLikes(id);
     return { success: true };
   }
@@ -124,35 +178,59 @@ export class PostService {
       id: post.id,
       title: post.title,
       slug: post.slug,
-      excerpt: post.excerpt || post.content.substring(0, 200),
+      excerpt: post.excerpt || post.content.substring(0, 200) + "...",
       coverImage: post.coverImage,
-      publishedAt: formatDate(post.publishedAt || post.createdAt),
+      publishedAt: this.formatDate(post.publishedAt || post.createdAt),
     }));
   }
 
-  private formatPostResponse(data: any, incrementViews = false) {
+  private formatPostResponse(data: PostResponseData, includeFullContent = true) {
+    const post = data.post;
+    
     return {
-      id: data.post.id,
-      title: data.post.title,
-      slug: data.post.slug,
-      content: data.post.content,
-      excerpt: data.post.excerpt || data.post.content.substring(0, 200) + "...",
-      coverImage: data.post.coverImage,
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      content: includeFullContent ? post.content : post.content.substring(0, 300) + "...",
+      excerpt: post.excerpt || post.content.substring(0, 200) + "...",
+      coverImage: post.coverImage,
       author: {
-        name: data.post.authorName || "Anonymous",
-        username: data.post.authorUsername || "anonymous",
-        avatar: data.post.authorAvatar,
+        name: post.authorName || "Anonymous",
+        username: post.authorUsername || "anonymous",
+        avatar: post.authorAvatar,
+        bio: post.authorBio,
+        followers: post.authorFollowers || 0,
       },
-      readTime: data.post.readTime || "5 min read",
-      publishedAt: formatDate(data.post.publishedAt || data.post.createdAt),
+      readTime: post.readTime || "5 min read",
+      publishedAt: this.formatDate(post.publishedAt || post.createdAt),
       tags: data.categories || [],
-      likes: data.post.likes || 0,
-      comments: data.post.commentsCount || 0,
-      views: (data.post.views || 0) + (incrementViews ? 1 : 0),
-      published: data.post.published,
-      createdAt: data.post.createdAt,
-      updatedAt: data.post.updatedAt,
+      likes: post.likes || 0,
+      comments: post.commentsCount || 0,
+      views: post.views || 0,
+      published: post.published || false,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
     };
+  }
+
+  private formatDate(date: Date | null): string {
+    if (!date) return "Draft";
+    
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+    
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   }
 
   private calculateReadTime(content: string): string {
