@@ -1,43 +1,50 @@
+import * as dotenv from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const connectionString = process.env.DATABASE_URL;
+// Load environment variables
+dotenv.config();
 
+const connectionString = process.env.DATABASE_URL;
+console.log("DATABASE_URL:", connectionString);
 if (!connectionString) {
   throw new Error("DATABASE_URL is not set in environment variables");
 }
 
-let connection: ReturnType<typeof postgres> | null = null;
+const globalForDb = globalThis as unknown as {
+  connection: ReturnType<typeof postgres> | undefined;
+};
 
 function getConnection() {
-  if (!connection) {
-    connection = postgres(connectionString!, {
-      max: 10, 
-      idle_timeout: 20, 
-      connect_timeout: 10, 
-      prepare: true, 
+  if (!globalForDb.connection) {
+    globalForDb.connection = postgres(connectionString!, {
+      max: 1, 
+      idle_timeout: 20,
+      connect_timeout: 10,
+      prepare: false, 
       onnotice: () => {}, 
       connection: {
         application_name: 'pulse_blog',
       },
     });
   }
-  return connection;
+  return globalForDb.connection;
 }
 
 export const db = drizzle(getConnection(), { schema });
 
-// Graceful shutdown
-export async function closeConnection() {
-  if (connection) {
-    await connection.end();
-    connection = null;
-  }
-}
+export const connection = getConnection();
 
-// Handle process termination
 if (typeof process !== 'undefined') {
-  process.on('SIGTERM', closeConnection);
-  process.on('SIGINT', closeConnection);
+  const cleanup = async () => {
+    if (globalForDb.connection) {
+      await globalForDb.connection.end({ timeout: 5 });
+      globalForDb.connection = undefined;
+    }
+  };
+
+  process.on('SIGTERM', cleanup);
+  process.on('SIGINT', cleanup);
+  process.on('beforeExit', cleanup);
 }

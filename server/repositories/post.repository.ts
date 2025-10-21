@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { posts, categories, postCategories } from "../db/schema";
-import { eq, desc, and, sql, or, ilike } from "drizzle-orm";
+import { eq, desc, and, sql, or, ilike, inArray } from "drizzle-orm";
 
 export class PostRepository {
   async findAll(filters?: {
@@ -35,7 +35,7 @@ export class PostRepository {
       })
       .from(postCategories)
       .innerJoin(categories, eq(postCategories.categoryId, categories.id))
-      .where(sql`${postCategories.postId} = ANY(${postIds})`);
+      .where(inArray(postCategories.postId, postIds));
 
     const categoriesByPost = new Map<string, string[]>();
     postCategoriesData.forEach(({ postId, categoryName }) => {

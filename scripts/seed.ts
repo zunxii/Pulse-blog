@@ -1,5 +1,9 @@
-import { db } from "../drizzle/db";
-import { posts, categories, postCategories } from "../drizzle/schema";
+import * as dotenv from "dotenv";
+import { db } from "../server/db/index";
+import { posts, categories, postCategories } from "../server/db/schema";
+
+// Load environment variables
+dotenv.config();
 
 const sampleCategories = [
   { name: "Web Development", description: "Modern web technologies and frameworks" },
@@ -310,67 +314,98 @@ Modern CSS is powerful, expressive, and maintainable. Start incorporating these 
 ];
 
 async function seed() {
-  console.log(" Seeding database...");
+  console.log("🌱 Seeding database...");
 
-  // Insert categories
-  console.log(" Creating categories...");
-  const createdCategories = await db
-    .insert(categories)
-    .values(sampleCategories.map(cat => ({
-      name: cat.name,
-      slug: cat.name.toLowerCase().replace(/\s+/g, "-"),
-      description: cat.description,
-    })))
-    .returning();
-
-  console.log(` Created ${createdCategories.length} categories`);
-
-  // Create a map of category names to IDs
-  const categoryMap = new Map(
-    createdCategories.map(cat => [cat.name, cat.id])
-  );
-
-  // Insert posts
-  console.log(" Creating posts...");
-  for (const postData of samplePosts) {
-    const categoryIds = postData.categories
-      .map(name => categoryMap.get(name))
-      .filter(Boolean) as string[];
-
-    const [post] = await db
-      .insert(posts)
-      .values({
-        title: postData.title,
-        slug: postData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        content: postData.content,
-        excerpt: postData.excerpt,
-        authorName: postData.authorName,
-        authorUsername: postData.authorUsername,
-        authorBio: postData.authorBio,
-        authorFollowers: postData.authorFollowers,
-        readTime: calculateReadTime(postData.content),
-        published: postData.published,
-        publishedAt: postData.published ? new Date() : null,
-        views: Math.floor(Math.random() * 10000),
-        likes: Math.floor(Math.random() * 1000),
-        commentsCount: Math.floor(Math.random() * 100),
-      })
-      .returning();
-
-    // Link post to categories
-    if (categoryIds.length > 0) {
-      await db.insert(postCategories).values(
-        categoryIds.map(categoryId => ({
-          postId: post.id,
-          categoryId,
-        }))
-      );
+  try {
+    // Check for existing categories and create missing ones
+    console.log("📁 Checking categories...");
+    const existingCategories = await db.select().from(categories);
+    const existingCategoryNames = new Set(existingCategories.map(cat => cat.name));
+    
+    const newCategories = sampleCategories.filter(cat => !existingCategoryNames.has(cat.name));
+    
+    let createdCategories = [...existingCategories];
+    
+    if (newCategories.length > 0) {
+      console.log(`📁 Creating ${newCategories.length} new categories...`);
+      const insertedCategories = await db
+        .insert(categories)
+        .values(newCategories.map(cat => ({
+          name: cat.name,
+          slug: cat.name.toLowerCase().replace(/\s+/g, "-"),
+          description: cat.description,
+        })))
+        .returning();
+      
+      createdCategories = [...createdCategories, ...insertedCategories];
+      console.log(`✅ Created ${insertedCategories.length} new categories`);
+    } else {
+      console.log("✅ All categories already exist");
     }
 
-    console.log(` Created post: ${post.title}`);
-  }
+    // Create a map of category names to IDs
+    const categoryMap = new Map(
+      createdCategories.map(cat => [cat.name, cat.id])
+    );
 
-  console.log("Seeding completed!");
+    // Check for existing posts and create missing ones
+    console.log("📝 Checking posts...");
+    const existingPosts = await db.select().from(posts);
+    const existingPostSlugs = new Set(existingPosts.map(post => post.slug));
+    
+    const newPosts = samplePosts.filter(postData => {
+      const slug = postData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      return !existingPostSlugs.has(slug);
+    });
+    
+    if (newPosts.length > 0) {
+      console.log(`📝 Creating ${newPosts.length} new posts...`);
+      for (const postData of newPosts) {
+        const categoryIds = postData.categories
+          .map(name => categoryMap.get(name))
+          .filter(Boolean) as string[];
+
+        const [post] = await db
+          .insert(posts)
+          .values({
+            title: postData.title,
+            slug: postData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            content: postData.content,
+            excerpt: postData.excerpt,
+            authorName: postData.authorName,
+            authorUsername: postData.authorUsername,
+            authorBio: postData.authorBio,
+            authorFollowers: postData.authorFollowers,
+            readTime: calculateReadTime(postData.content),
+            published: postData.published,
+            publishedAt: postData.published ? new Date() : null,
+            views: Math.floor(Math.random() * 10000),
+            likes: Math.floor(Math.random() * 1000),
+            commentsCount: Math.floor(Math.random() * 100),
+          })
+          .returning();
+
+        // Link post to categories
+        if (categoryIds.length > 0) {
+          await db.insert(postCategories).values(
+            categoryIds.map(categoryId => ({
+              postId: post.id,
+              categoryId,
+            }))
+          );
+        }
+
+        console.log(`✅ Created post: ${post.title}`);
+      }
+    } else {
+      console.log("✅ All posts already exist");
+    }
+
+    console.log("✨ Seeding completed successfully!");
+  } catch (error) {
+    console.error("❌ Seeding failed:", error);
+    throw error;
+  }
 }
 
 function calculateReadTime(content: string): string {
@@ -380,10 +415,13 @@ function calculateReadTime(content: string): string {
   return `${minutes} min read`;
 }
 
+// Run seed
 seed()
-  .then(() => process.exit(0))
+  .then(() => {
+    console.log("👋 Exiting...");
+    process.exit(0);
+  })
   .catch((error) => {
-    console.error(" Seeding failed:", error);
+    console.error("💥 Fatal error:", error);
     process.exit(1);
   });
-
