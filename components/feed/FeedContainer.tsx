@@ -7,18 +7,40 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, AlertCircle } from "lucide-react"
 import { useState } from "react"
 import { trpc } from "@/server/trpc/client"
 
 export function FeedContainer() {
   const [selected, setSelected] = useState("Latest")
   
-  const { data: posts, isLoading } = trpc.post.getAll.useQuery({
+  const { data: posts, isLoading, error } = trpc.post.getAll.useQuery({
     published: true,
     limit: 20,
   });
 
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-white">Latest Stories</h1>
+        </div>
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Failed to Load Posts</h3>
+          <p className="text-white/60 mb-4">{error.message}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-white text-black rounded-lg hover:bg-white/90"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -69,8 +91,11 @@ export function FeedContainer() {
           <BlogPostCard key={post.id} {...post} />
         ))
       ) : (
-        <div className="text-center py-12 text-white/60">
-          <p>No posts found. Be the first to create one!</p>
+        <div className="text-center py-12 bg-white/5 border border-white/10 rounded-2xl">
+          <p className="text-white/60 mb-4">No posts found. Be the first to create one!</p>
+          <a href="/write" className="text-white hover:text-white/80 underline">
+            Create your first post
+          </a>
         </div>
       )}
     </div>

@@ -25,10 +25,11 @@ export const postRouter = router({
     }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: z.string().min(1) }))
     .query(async ({ input }) => {
       try {
-        return await postService.getPostById(input.id);
+        const post = await postService.getPostBySlug(input.id);
+        return post;
       } catch (error) {
         if (error instanceof Error && error.message === 'Post not found') {
           throw new TRPCError({

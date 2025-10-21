@@ -3,11 +3,10 @@
 import { Sidebar } from '@/components/layout/Sidebar'
 import { FeedContainer } from '@/components/feed/FeedContainer'
 import { TrendingTopics } from '@/components/feed/TrendingTopics'
-import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 import { RecommendedAuthors } from '@/components/feed/RecommendedAuthors'
 
 export default function FeedPage() {
-  useSmoothScroll()
+
 
   return (
     <div className="min-h-screen bg-black">

@@ -7,7 +7,7 @@ const commentService = new CommentService();
 
 export const commentRouter = router({
   getByPostId: publicProcedure
-    .input(z.object({ postId: z.string().uuid() }))
+    .input(z.object({ postId: z.string().min(1) }))
     .query(async ({ input }) => {
       try {
         return await commentService.getCommentsByPostId(input.postId);

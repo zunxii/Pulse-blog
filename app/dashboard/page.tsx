@@ -3,13 +3,12 @@
 import { Sidebar } from '@/components/layout/Sidebar'
 import { DashboardStats } from '@/components/dashboard/DashboardStats'
 import { RecentPosts } from '@/components/dashboard/RecentPosts'
-import { useSmoothScroll } from '@/hooks/useSmoothScroll'
 import Link from 'next/link'
 import { PenSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
-  useSmoothScroll()
+
 
   return (
     <div className="min-h-screen bg-black">
